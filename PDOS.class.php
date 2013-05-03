@@ -2,24 +2,27 @@
 
 class PDOS extends PDO {
 
-	private $query;
+	private $_query;
 	private $tables;
 	private $joins;
 	private $conditions;
 	private $collumns;
 	private $values;
-	private $parametros = array();
+	private $parametros = '';
 	private $PDOParam   = array();
-	private $order;
-	private $action = 'SELECT';
-	private $limit;
+	private $order		= false;
+	private $action     = 'select';
+	private $limit 		= false;
+	private $isWhere    = false;   
+	private $return		= PDO::FETCH_BOTH;
+	private $returnFunction  = 'fetch';
 
 
 	private $charset = 'utf8';
 	private $port    = 3306;
 	private $config  = array();
 
-	const debug = false;
+	private $debug = false;
 
 	public function __construct($host, $user, $pass, $dbname, $port=null, $dbtype='mysql')
 	{
@@ -31,54 +34,277 @@ class PDOS extends PDO {
 		$this->config['dbname'] = $dbname;
 		try {
 			parent::__construct($this->getStringConection(), $this->config['user'], $this->config['pass'], $this->getAttr());
-		} catch (PDOException $e) {
+		} catch (Exception $e) {
 			echo 'Connection failed: ' . $e->getMessage();
 		}
 	}
 
-	public function getAll($table, $condition=array(), $collumns="*", $return="array", $debug=false)
-	{
-		return $this->getOne($table,  $condition, $collumns, array('fetchAll' => $return), $debug);
+	public function getAll($table, $condition=array(), $collumns="*", $return="array", $order=false)
+	{	
+		$this->returnFunction = 'fetchAll';
+		return $this->getOne($table,  $condition, $collumns, $return);
 	}
 
-	public function getOne($table, $condition=array(), $collumns="*", $return="array", $debug=false)
+	public function getOne($table, $condition=array(), $collumns="*", $return="array", $order=false)
 	{
+		$this->clearQuery();
+		$this->setTables($table);
+		$this->setConditions($condition);
+		$this->setCollumns($collumns);
+		$this->setReturn($return);
+		if ($order)
+			$this->setOrder($order);
 
+		$this->createQuery();
+
+		return $this->execute();
 	}
 
-	public function add($table, $values=array(), $debug=false)
+	public function add($table, $values=array())
 	{
-		
+		$this->clearQuery();
+		$this->setTables($table);
+		$this->setAction('insert');
+		$this->setValues($values);
+		$this->createQuery();
+		return $this->execute();
 	}
 
-	public function update($table, $values=array(), $condition=array(), $debug=false)
+	public function update($table, $values=array(), $condition=array())
 	{
-		
+		$this->clearQuery();
+		$this->setTables($table);
+		$this->setAction('update');
+		$this->setValues($values);
+		$this->setConditions($condition);
+		$this->createQuery();
+		return $this->execute();
 	}
 
-	public function save($table, $values=array(), $condition=array(), $debug=false)
+	public function save($table, $values=array(), $condition=array())
 	{
-		
+		$verifica = $this->getOne($table,$condition);
+		if ($verifica) {
+			return $this->update($table, $values, $condition);
+		} else {
+			return $this->add($table, $values);
+		}
 	}
 
-	public function delete($table, $condition=array(), $debug=false)
+	public function delete($table, $condition=array())
 	{
-		
+		$this->clearQuery();
+		$this->setTables($table);
+		$this->setAction('delete');
+		$this->setConditions($condition);
+		$this->createQuery();
+	}
+
+	public function getDebug()
+	{
+		return $this->showDebugInfo();
 	}
 
 	/*========================================
 	=            Métodos privados            =
 	========================================*/	
-	private function setCollumns($collumns)
+
+	/**
+	 * Cria a query de acordo com a acao definida.
+	 * 
+	 * @return void 
+	 */
+	private function createQuery()
 	{
-		if (is_array($collumns)) 
-			$this->collumns .= implode(',', $collumn);
-		else
-			$this->collumns = $collumn;
+		switch ($this->action) {
+			case 'select':
+				$this->_query = "SELECT ". $this->collumns . " FROM " . $this->tables . $this->joins . $this->parametros . $this->order . $this->limit;
+				break;
+
+			case 'insert':
+				$this->_query = "INSERT INTO " . $this->tables . " (" . $this->collumns . ") VALUES (" .  $this->parametros . ")";
+				break;
+
+			case 'update':
+				$this->_query = "UPDATE " . $this->tables . " SET " . $this->values . $this->parametros;
+				break;
+
+			case 'delete':
+				$this->_query = "DELETE " . $this->tables . $this->parametros;
+				break;
+			
+			default:
+				throw new Exception("Type os query not defined", 200);				
+				break;
+		}
 	}
 
-	private function setConditions() {
-		
+	private function execute() {
+		$stmnt = $this->prepare($this->_query);
+		try {
+			$this->beginTransaction();
+			$exe = $stmnt->execute($this->PDOParam);
+			if ($this->action == 'insert')
+				$lastId = $this->lastInsertId();
+			$this->commit();
+			if ($exe) {
+				switch ($this->action) {
+					case 'insert':
+						return $lastId;
+						break;
+
+					case 'select':
+						return $stmnt->{$this->returnFunction}($this->return);
+						break;
+					
+					default:
+						return true;
+						break;
+				}	
+			} else {
+				$error = $stmnt->errorInfo();				
+				throw new Exception($error[2], $error[1]);	
+				$this->rollBack();				
+			}
+		} catch(PDOException $e) {
+			echo $e->getMessage() . "<br/>\n";
+			$this->rollBack();
+		}					
+			
+	}
+
+	/**
+	 * Cria string com as colunas passadas.
+	 * 
+	 * @param string|array $collumns Nome das colunas
+	 *
+	 * As colunas podem vir em duas formas:
+	 *
+	 * 1 - String : '*'
+	 * 2 - Array: array('coluna1','coluna2');
+	 *
+	 * @return void
+	 */
+	private function setCollumns($collumns=array())
+	{
+		if (is_array($collumns)) 
+			$this->collumns .= implode(', ', $collumns);
+		else
+			$this->collumns = $collumns;
+	}
+
+	private function setValues($values)
+	{
+		if (is_array($values)) {
+			$i = 1;
+			foreach ($values as $coluna => $valor) {
+				$variavelPDO = $this->ramdomString(strlen($coluna)); 
+				if ($this->action == 'insert') {
+					$this->collumns .= ($i > 1 ? ', ' : '') . "{$coluna}";
+					$this->parametros .= ($i > 1 ? ', ' : '') . ":{$variavelPDO}";
+					$this->PDOParam[":{$variavelPDO}"] = $valor;
+				} else {
+					$this->values .= ($i > 1 ? ', ' : '') . " {$coluna} = :{$variavelPDO}";
+					$this->PDOParam[":{$variavelPDO}"] = $valor;
+				}
+				$i++;
+			}			
+		} else {
+			throw new Exception("Values must be a array", 150);			
+		}
+	}
+
+	/**
+	 * Configura e cria string de condições de uma query.
+	 * 
+	 * @param array $conditions Configuração de condições no seguinte formato:
+	 *
+	 * array(
+	 * 		'col_int' => 1,
+	 * 		'col_string' => 'Fulano',
+	 * 		'data_equal' => '2012-03-20',
+	 * 		'data_maior' => array('>', '2012-03-20'),
+	 * 		'data_between' => array('between', array('2012-03-20',2012-04-20))
+	 * );
+	 *
+	 * @return void
+	 * 
+	 */
+	private function setConditions($conditions) {
+
+		foreach ($conditions as $coluna => $valor) {
+			if (!$this->isWhere) {
+				$this->parametros .= " WHERE";
+				$this->isWhere  = true;
+			} else {
+				$this->parametros .= " AND";
+			}
+			
+			if (strstr($coluna, ',')) { // Em caso de uma busca de um mesmo valor em várias colunas "OR"
+				$x = 1;
+				$coluna = explode(',', $coluna);
+				foreach ($coluna as $col) {
+					$col = trim($col);
+					$this->parametros .= ($x > 1 ? " OR" : "") . " {$col} ";
+				
+					if (is_numeric($valor)) {
+						$operador = "=";
+					} else {
+						$operador = "LIKE";
+					}
+					$variavelPDO    = $this->ramdomString(strlen($col)); 				
+					$this->parametros .= "{$operador} :{$variavelPDO}";
+					$this->PDOParam[":{$variavelPDO}"] = $valor;
+					$x++;
+				}
+			} else { // Em caso de busca de um valor em uma coluna "AND" ou "WHERE"
+				
+				$this->parametros .= " {$coluna} ";
+				
+				if (is_array($valor)) { // Verifica se é apenas um valor ou vários, ou um tipo  de verificação diferente de "=" ou "LIKE"
+					foreach ($valor as $tipo => $valTmp) {			
+						switch ($tipo) {
+							case 'between':
+								$variavelPDO1 = $this->ramdomString(strlen($coluna)); 
+								$variavelPDO2 = $this->ramdomString(strlen($coluna));				
+								$this->PDOParam[":{$variavelPDO1}"] = $valTmp[0];
+								$this->PDOParam[":{$variavelPDO2}"] = $valTmp[1];
+								$this->parametros .= "BETWEEN :{$variavelPDO1} AND :{$variavelPDO2}";
+								break;
+
+							case 'in':
+								$this->parametros .= "IN (";
+								$i = 1;
+								foreach ($valTmp as $val) {
+									$variavelPDO = $this->ramdomString(strlen($coluna)); 			
+									$this->PDOParam[":{$variavelPDO}"] = $val;
+									$this->parametros .= ($i>1 ? "," : "") . ":{$variavelPDO}";
+									$i++;
+								}
+								$this->parametros .= ")";
+								break;
+							
+							default:
+								$variavelPDO = $this->ramdomString(strlen($coluna)); 			
+								$this->PDOParam[":{$variavelPDO}"] = $valTmp;
+								$this->parametros .= "{$tipo} :{$variavelPDO}";
+								break;
+						}
+					}
+				} else { // Caso de ser apenas um valor
+					if (is_numeric($valor)) { // Verifica se é numérico ou string
+						$operador = "=";
+					} else {
+						$operador = "LIKE";
+					}
+					$variavelPDO    = $this->ramdomString(strlen($coluna)); 				
+					$this->parametros .= "{$operador} :{$variavelPDO}";
+					$this->PDOParam[":{$variavelPDO}"] = $valor;
+	 			}
+			}
+
+			
+		}
 	}
 
 	/**
@@ -185,24 +411,55 @@ class PDOS extends PDO {
 				throw new Exception("Table name of join not defined", 130);				
 			}
 
-			if (isset($tables['on'])) {
-				$this->tables .= " ON " . $tables['on'];
+			if (isset($options['on'])) {
+				$this->joins .= " ON " . $options['on'];
 			}
 		} else {
 			throw new Exception("Join must be a array", 110);
 		}
 	}
 
-	private function getParametros()
+	/**
+	 * Seta tipo de retorno
+	 * 
+	 * @param string $retorno Tipo de retorno, pode ser 'collumn', 'object', 'number'
+	 */
+	private function setReturn($retorno='array')
 	{
-		/* Conteúdo da função */
+		switch ($retorno) {
+			case 'collumn':
+				$this->return = PDO::FETCH_ASSOC;
+				break;
+
+			case 'object':
+				$this->return = PDO::FETCH_OBJ;
+				break;
+
+			case 'number':
+				$this->return = PDO::FETCH_NUM;
+				break;
+			
+			default:
+				$this->return = PDO::FETCH_BOTH;
+				break;
+		}
 	}
 
+	/**
+	 * Gera string da conexão PDO
+	 * 
+	 * @return string 
+	 */
 	private function getStringConection()
 	{
 		return $this->config['dbtype'] . ':host=' . $this->config['host'] . ';dbname=' . $this->config['dbname'] . ';port=' . $this->config['port'];
 	}
 
+	/**
+	 * Cria um attr para executar no inicio da conexao
+	 * 					
+	 * @return array
+	 */
 	private function getAttr() {
 		if (!empty($this->config['charset'])) {
 			$this->charset = $this->config['charset'];
@@ -210,32 +467,111 @@ class PDOS extends PDO {
 		return array(PDO::MYSQL_ATTR_INIT_COMMAND => "SET CHARACTER SET " . $this->charset);
 	}
 
+	/**
+	 * Seta limit da classe
+	 * 		
+	 * @param integer $init Linha inicial
+	 * @param integer $end  Linha final
+	 * @return void
+	 */
 	private function setLimit($init=0, $end=1000)
 	{
 		return $this->limit = " LIMIT {$init}, {$end} ";
 	}
 
-	// private function getFields($data)
-	// {
-	// 	$fields = array();
-	// 	if (is_int(key($data))) {
-	// 		$fields = implode(',', $data);
-	// 	} else if (!empty($data)) {
-	// 		$fields = implode(',', array_keys($data));
-	// 	} else {
-	// 		$fields = '*';
-	// 	}
-	// 	return $fields;
-	// }
+	/**
+	 * Seta ordenacao.		
+	 * 
+	 * @param array|string $order Pode ser em dois formatos:
+	 *
+	 * 1 - `coluna` ASC
+	 * 2 - array('coluna' => 'ASC')
+	 *
+	 * @return void
+	 */
+	private function setOrder($order)
+	{
+		if (is_array($order)) {
+			$i = 1;
+			foreach ($order as $coluna => $ordem) {
+				$this->order .= ($i>1 ? ", " : "") . "`{$coluna}` {$ordem}";
+				$i++;
+			}
+		} else {
+			$this->order = $order;
+		}		
+	}
+
+	/**
+	 * Seta tipo de query
+	 * 
+	 * @param string $action 
+	 */
+	private function setAction($action='select')
+	{
+		return $this->action = $action;
+	}
+
+	/**
+	 * Exibe informações de DEbug da classe
+	 * 			
+	 * @return html|string
+	 */
+	private function showDebugInfo()
+	{
+
+		ob_start();  
+		print_r($this->PDOParam);
+		$pdoParam=ob_get_contents();  
+		ob_end_clean(); 
+
+		echo '<strong>Query:</strong><br>
+			<pre>'.$this->_query.'</pre></pre><hr>
+			<strong>Tabelas:</strong><br>
+			<pre>'.$this->tables.'</pre><hr>
+			<strong>Colunas:</strong><br>
+			<pre>'.$this->collumns.'</pre><hr>
+			<strong>Joins:</strong><br>
+			<pre>'.$this->joins.'</pre><hr>
+			<strong>Parametros:</strong><br>
+			<pre>'.$this->parametros.'</pre><hr>
+			<strong>Parametros PDO:</strong><br>
+			<pre>'.$pdoParam.'</pre><hr>';
+	}
+
+	/**
+	 * Gera string randomica com o tamanho informado
+	 * 
+	 * @param  integer $tamanho Tamanho em caracteres 
+	 * @return string        
+	 */
+	private function ramdomString($tamanho=5) {
+		$retorno = '';
+		$caracteres = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890';
+		$len = strlen($caracteres);
+		for ($n = 1; $n <= $tamanho; $n++) {
+			$rand = mt_rand(1, $len);
+			$retorno .= $caracteres[$rand-1];
+		}
+		return $retorno;
+	}
+
+	/**
+	 * Método para limpar query
+	 * 
+	 * @return void 
+	 */
+	private function clearQuery() {
+		$this->tables         = null;
+		$this->joins          = null;
+		$this->conditions     = null;
+		$this->collumns       = null;
+		$this->values         = null;
+		$this->PDOParam       = array();
+		$this->parametros     = null;
+		$this->order          = false;
+		$this->limit          = false;
+		$this->isWhere        = false;   
+	}
 
 }
-
-$host = 'localhost';
-$user = 'root';
-$pass = 'java2012';
-$dbname = 'ficbic';
-
-$pdos = new PDOS($host, $user, $pass, $dbname);
-
-
-$results = $pdos->getAll('fic_estados', array('cod_estado' => 1));
