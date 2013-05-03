@@ -1,5 +1,14 @@
 <?php
 
+/**
+ * Classe para facilitar o CRUD com o banco de dados.
+ *
+ * A intenção dessa classe é simplificar a conexão com o banco de dados usando a classe PDO
+ * mas sem perder as segurança do PDO, conforme outras classes semelhantes.
+ *
+ * @author Carlos Augusto Gartner <carlos@we3online.com.br>
+ * @link https://github.com/cagartner/PDOSimplificado/
+ */
 class PDOS extends PDO {
 
 	private $_query;
@@ -8,21 +17,21 @@ class PDOS extends PDO {
 	private $conditions;
 	private $collumns;
 	private $values;
-	private $parametros = '';
-	private $PDOParam   = array();
-	private $order		= false;
-	private $action     = 'select';
-	private $limit 		= false;
-	private $isWhere    = false;   
-	private $return		= PDO::FETCH_BOTH;
-	private $returnFunction  = 'fetch';
-
-
-	private $charset = 'utf8';
-	private $port    = 3306;
-	private $config  = array();
-
-	private $debug = false;
+	private $parametros     = '';
+	private $PDOParam       = array();
+	private $order          = false;
+	private $action         = 'select';
+	private $limit          = false;
+	private $isWhere        = false;   
+	private $return         = PDO::FETCH_BOTH;
+	private $returnFunction = 'fetch';
+	
+	
+	private $charset        = 'utf8';
+	private $port           = 3306;
+	private $config         = array();
+	
+	private $debug          = false;
 
 	public function __construct($host, $user, $pass, $dbname, $port=null, $dbtype='mysql')
 	{
@@ -39,27 +48,54 @@ class PDOS extends PDO {
 		}
 	}
 
+	/**
+	 * Busca todas os registros de uma tabela informada.
+	 * 	
+	 * @param  string|array  $table     Nome da tabela em formato de string ou array
+	 * @param  array   		 $condition Condições da busca.
+	 * @param  string|array  $collumns  Colunas que serão retornada. Padrão: *
+	 * @param  string  		 $return    Tipo de retorno, pode ser 'object', 'collumn', 'array'
+	 * @param  boolean|array $order     Ordem da query
+	 * @return array
+	 */
 	public function getAll($table, $condition=array(), $collumns="*", $return="array", $order=false)
 	{	
-		$this->returnFunction = 'fetchAll';
-		return $this->getOne($table,  $condition, $collumns, $return);
+		return $this->getOne($table,  $condition, $collumns, $return, $order, true);
 	}
 
-	public function getOne($table, $condition=array(), $collumns="*", $return="array", $order=false)
+	/**
+	 * Busca todas os registros de uma tabela informada.
+	 * 	
+	 * @param  string|array  $table     Nome da tabela em formato de string ou array
+	 * @param  array   		 $condition Condições da busca.
+	 * @param  string|array  $collumns  Colunas que serão retornada. Padrão: *
+	 * @param  string  		 $return    Tipo de retorno, pode ser 'object', 'collumn', 'array'
+	 * @param  boolean|array $order     Ordem da query
+	 * @param  boolean 		 $all 		Parametro interno para configurar retorno de uma ou vária.
+	 * @return array|object
+	 */
+	public function getOne($table, $condition=array(), $collumns="*", $return="array", $order=false, $all=false)
 	{
 		$this->clearQuery();
+		if ($all) 
+			$this->returnFunction = 'fetchAll';
 		$this->setTables($table);
 		$this->setConditions($condition);
 		$this->setCollumns($collumns);
 		$this->setReturn($return);
 		if ($order)
 			$this->setOrder($order);
-
 		$this->createQuery();
-
 		return $this->execute();
 	}
 
+	/**
+	 * Método para adicionar registro a tabela
+	 * 
+	 * @param string $table  Nome da tabela
+	 * @param array  $values Dados a ser inseridos
+	 * @return integer|boolean
+	 */
 	public function add($table, $values=array())
 	{
 		$this->clearQuery();
@@ -70,6 +106,14 @@ class PDOS extends PDO {
 		return $this->execute();
 	}
 
+	/**
+	 * Método para editar registro em uma tabela
+	 * 
+	 * @param  string $table     Nome da tabela
+	 * @param  array  $values    Colunas e valores a serem editados
+	 * @param  array  $condition Condição da edição
+	 * @return boolean           'true' para sucesso e 'false' para erro
+	 */
 	public function update($table, $values=array(), $condition=array())
 	{
 		$this->clearQuery();
@@ -81,6 +125,15 @@ class PDOS extends PDO {
 		return $this->execute();
 	}
 
+	/**
+	 * Método para salvar, esse método primeiro verifica se com as condições ele encontra algum registro, 
+	 * se ele encontrar ele edita o mesmo, caso contrário ele cadastra um novo registro
+	 * 
+	 * @param  string $table     Nome da tabela
+	 * @param  array  $values    Valores a editar|cadastrar
+	 * @param  array  $condition Condição para verificar se já existe e depois alterar
+	 * @return boolean|int       'true' para quando editar com sucesso e caso de novo registro 'int' com o id do mesmo.
+	 */
 	public function save($table, $values=array(), $condition=array())
 	{
 		$verifica = $this->getOne($table,$condition);
@@ -91,6 +144,13 @@ class PDOS extends PDO {
 		}
 	}
 
+	/**
+	 * Método para excluir um registro
+	 * 
+	 * @param  string $table     Nome da tabela
+	 * @param  array  $condition Condição da exclusão
+	 * @return boolean           'true' para sucesso e 'false' para erro
+	 */
 	public function delete($table, $condition=array())
 	{
 		$this->clearQuery();
@@ -98,6 +158,7 @@ class PDOS extends PDO {
 		$this->setAction('delete');
 		$this->setConditions($condition);
 		$this->createQuery();
+		return $this->execute();
 	}
 
 	public function getDebug()
@@ -130,7 +191,7 @@ class PDOS extends PDO {
 				break;
 
 			case 'delete':
-				$this->_query = "DELETE " . $this->tables . $this->parametros;
+				$this->_query = "DELETE FROM " . $this->tables . $this->parametros;
 				break;
 			
 			default:
@@ -572,6 +633,8 @@ class PDOS extends PDO {
 		$this->order          = false;
 		$this->limit          = false;
 		$this->isWhere        = false;   
+		$this->return         = PDO::FETCH_BOTH;
+		$this->returnFunction = 'fetch';
 	}
 
 }

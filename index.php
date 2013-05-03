@@ -22,30 +22,16 @@ $tabelas = array(
 
 $tabelas = "usuario";
 
-//$where = array('nom_estado' => '%santa%');
 
-// try {
-// 	$results = $pdos->getAll($tabelas, array('id' => 1, 'nome' => '%Carlos'), array('nome'), 'object');
-
-// 	$pdos->getDebug();
-
-// 	echo "<pre>";
-// 	print_r($results);
-// 	echo "</pre>";
-// } catch (Exception $e) {
-// 	echo $e->getMessage();
-// }
-// 
-// 
 $dados = array('nome' => 'Carlos Augusto', 'email' => 'carlos@we3onlinecom.br');
-try {
-	$results = $pdos->add($tabelas, $dados);
 
-	$pdos->getDebug();
+try {
+	$results = $pdos->delete($tabelas, $dados);
 
 	echo "<pre>";
 	print_r($results);
 	echo "</pre>";
+
 } catch (Exception $e) {
 	echo $e->getMessage();
 }
