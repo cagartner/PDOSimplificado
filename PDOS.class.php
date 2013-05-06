@@ -80,6 +80,7 @@ class PDOS extends PDO {
 		if ($all) 
 			$this->returnFunction = 'fetchAll';
 		$this->setTables($table);
+		$this->setAction('select');
 		$this->setConditions($condition);
 		$this->setCollumns($collumns);
 		$this->setReturn($return);
@@ -623,6 +624,7 @@ class PDOS extends PDO {
 	 * @return void 
 	 */
 	private function clearQuery() {
+		$this->_query 		  = null;
 		$this->tables         = null;
 		$this->joins          = null;
 		$this->conditions     = null;
