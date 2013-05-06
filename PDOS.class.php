@@ -180,7 +180,12 @@ class PDOS extends PDO {
 	{
 		switch ($this->action) {
 			case 'select':
-				$this->_query = "SELECT ". $this->collumns . " FROM " . $this->tables . $this->joins . $this->parametros . $this->order . $this->limit;
+				$this->_query = "SELECT ". $this->collumns . 
+								" FROM " . $this->tables . 
+								$this->joins . 
+								$this->parametros .  
+								(!empty($this->order) ? " ORDER BY " . $this->order : '') .  
+								$this->limit;
 				break;
 
 			case 'insert':
@@ -556,7 +561,7 @@ class PDOS extends PDO {
 		if (is_array($order)) {
 			$i = 1;
 			foreach ($order as $coluna => $ordem) {
-				$this->order .= ($i>1 ? ", " : "") . "`{$coluna}` {$ordem}";
+				$this->order .= ($i>1 ? " ," : "") . " {$coluna} {$ordem}";
 				$i++;
 			}
 		} else {
