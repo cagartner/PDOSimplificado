@@ -56,6 +56,7 @@ class PDOS extends PDO {
 	 * @param  string|array  $collumns  Colunas que serão retornada. Padrão: *
 	 * @param  string  		 $return    Tipo de retorno, pode ser 'object', 'collumn', 'array'
 	 * @param  boolean|array $order     Ordem da query
+	 * @param  boolean     	 $debug     Ativa Debug de código
 	 * @return array
 	 */
 	public function getAll($table, $condition=array(), $collumns="*", $return="array", $order=false, $debug=false)
@@ -71,6 +72,7 @@ class PDOS extends PDO {
 	 * @param  string|array  $collumns  Colunas que serão retornada. Padrão: *
 	 * @param  string  		 $return    Tipo de retorno, pode ser 'object', 'collumn', 'array'
 	 * @param  boolean|array $order     Ordem da query
+	 * @param  boolean     	 $debug     Ativa Debug de código
 	 * @param  boolean 		 $all 		Parametro interno para configurar retorno de uma ou vária.
 	 * @return array|object
 	 */
@@ -97,6 +99,7 @@ class PDOS extends PDO {
 	 * 
 	 * @param string $table  Nome da tabela
 	 * @param array  $values Dados a ser inseridos
+	 * @param  boolean     	 $debug     Ativa Debug de código
 	 * @return integer|boolean
 	 */
 	public function add($table, $values=array(), $debug=false)
@@ -117,6 +120,7 @@ class PDOS extends PDO {
 	 * @param  string $table     Nome da tabela
 	 * @param  array  $values    Colunas e valores a serem editados
 	 * @param  array  $condition Condição da edição
+	 * @param  boolean     	 $debug     Ativa Debug de código
 	 * @return boolean           'true' para sucesso e 'false' para erro
 	 */
 	public function update($table, $values=array(), $condition=array(), $debug=false)
@@ -139,6 +143,7 @@ class PDOS extends PDO {
 	 * @param  string $table     Nome da tabela
 	 * @param  array  $values    Valores a editar|cadastrar
 	 * @param  array  $condition Condição para verificar se já existe e depois alterar
+	 * @param  boolean     	 $debug     Ativa Debug de código
 	 * @return boolean|int       'true' para quando editar com sucesso e caso de novo registro 'int' com o id do mesmo.
 	 */
 	public function save($table, $values=array(), $condition=array(), $debug=false)
@@ -156,6 +161,7 @@ class PDOS extends PDO {
 	 * 
 	 * @param  string $table     Nome da tabela
 	 * @param  array  $condition Condição da exclusão
+	 * @param  boolean     	 $debug     Ativa Debug de código
 	 * @return boolean           'true' para sucesso e 'false' para erro
 	 */
 	public function delete($table, $condition=array(), $debug=false)
