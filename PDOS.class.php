@@ -58,9 +58,9 @@ class PDOS extends PDO {
 	 * @param  boolean|array $order     Ordem da query
 	 * @return array
 	 */
-	public function getAll($table, $condition=array(), $collumns="*", $return="array", $order=false)
+	public function getAll($table, $condition=array(), $collumns="*", $return="array", $order=false, $debug=false)
 	{	
-		return $this->getOne($table,  $condition, $collumns, $return, $order, true);
+		return $this->getOne($table,  $condition, $collumns, $return, $order, $debug, true);
 	}
 
 	/**
@@ -74,7 +74,7 @@ class PDOS extends PDO {
 	 * @param  boolean 		 $all 		Parametro interno para configurar retorno de uma ou vária.
 	 * @return array|object
 	 */
-	public function getOne($table, $condition=array(), $collumns="*", $return="array", $order=false, $all=false)
+	public function getOne($table, $condition=array(), $collumns="*", $return="array", $order=false, $debug=false, $all=false)
 	{
 		$this->clearQuery();
 		if ($all) 
@@ -87,6 +87,8 @@ class PDOS extends PDO {
 		if ($order)
 			$this->setOrder($order);
 		$this->createQuery();
+		if ($debug)
+			$this->getDebug();
 		return $this->execute();
 	}
 
@@ -97,13 +99,15 @@ class PDOS extends PDO {
 	 * @param array  $values Dados a ser inseridos
 	 * @return integer|boolean
 	 */
-	public function add($table, $values=array())
+	public function add($table, $values=array(), $debug=false)
 	{
 		$this->clearQuery();
 		$this->setTables($table);
 		$this->setAction('insert');
 		$this->setValues($values);
 		$this->createQuery();
+		if ($debug)
+			$this->getDebug();
 		return $this->execute();
 	}
 
@@ -115,7 +119,7 @@ class PDOS extends PDO {
 	 * @param  array  $condition Condição da edição
 	 * @return boolean           'true' para sucesso e 'false' para erro
 	 */
-	public function update($table, $values=array(), $condition=array())
+	public function update($table, $values=array(), $condition=array(), $debug=false)
 	{
 		$this->clearQuery();
 		$this->setTables($table);
@@ -123,6 +127,8 @@ class PDOS extends PDO {
 		$this->setValues($values);
 		$this->setConditions($condition);
 		$this->createQuery();
+		if ($debug)
+			$this->getDebug();
 		return $this->execute();
 	}
 
@@ -135,13 +141,13 @@ class PDOS extends PDO {
 	 * @param  array  $condition Condição para verificar se já existe e depois alterar
 	 * @return boolean|int       'true' para quando editar com sucesso e caso de novo registro 'int' com o id do mesmo.
 	 */
-	public function save($table, $values=array(), $condition=array())
+	public function save($table, $values=array(), $condition=array(), $debug=false)
 	{
 		$verifica = $this->getOne($table,$condition);
 		if ($verifica) {
-			return $this->update($table, $values, $condition);
+			return $this->update($table, $values, $condition, $debug);
 		} else {
-			return $this->add($table, $values);
+			return $this->add($table, $values, $debug);
 		}
 	}
 
@@ -152,13 +158,15 @@ class PDOS extends PDO {
 	 * @param  array  $condition Condição da exclusão
 	 * @return boolean           'true' para sucesso e 'false' para erro
 	 */
-	public function delete($table, $condition=array())
+	public function delete($table, $condition=array(), $debug=false)
 	{
 		$this->clearQuery();
 		$this->setTables($table);
 		$this->setAction('delete');
 		$this->setConditions($condition);
 		$this->createQuery();
+		if ($debug)
+			$this->getDebug();
 		return $this->execute();
 	}
 
