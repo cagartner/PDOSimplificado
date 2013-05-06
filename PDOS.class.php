@@ -56,12 +56,19 @@ class PDOS extends PDO {
 	 * @param  string|array  $collumns  Colunas que serão retornada. Padrão: *
 	 * @param  string  		 $return    Tipo de retorno, pode ser 'object', 'collumn', 'array'
 	 * @param  boolean|array $order     Ordem da query
-	 * @param  boolean     	 $debug     Ativa Debug de código
 	 * @return array
 	 */
-	public function getAll($table, $condition=array(), $collumns="*", $return="array", $order=false, $debug=false)
+	public function getAll(
+		$table, 
+		$condition=array(), 
+		$collumns="*", 
+		$return="array", 
+		$order=false, 
+		$limit=false, 
+		$debug=false
+		)
 	{	
-		return $this->getOne($table,  $condition, $collumns, $return, $order, $debug, true);
+		return $this->getOne($table,  $condition, $collumns, $return, $order, $limit, $debug, true);
 	}
 
 	/**
@@ -72,11 +79,18 @@ class PDOS extends PDO {
 	 * @param  string|array  $collumns  Colunas que serão retornada. Padrão: *
 	 * @param  string  		 $return    Tipo de retorno, pode ser 'object', 'collumn', 'array'
 	 * @param  boolean|array $order     Ordem da query
-	 * @param  boolean     	 $debug     Ativa Debug de código
 	 * @param  boolean 		 $all 		Parametro interno para configurar retorno de uma ou vária.
 	 * @return array|object
 	 */
-	public function getOne($table, $condition=array(), $collumns="*", $return="array", $order=false, $debug=false, $all=false)
+	public function getOne(
+		$table, 
+		$condition=array(), 
+		$collumns="*", 
+		$return="array", 
+		$order=false, 
+		$limit=false,
+		$debug=false, 
+		$all=false)
 	{
 		$this->clearQuery();
 		if ($all) 
@@ -88,6 +102,8 @@ class PDOS extends PDO {
 		$this->setReturn($return);
 		if ($order)
 			$this->setOrder($order);
+		if ($limit)
+			$this->setLimit($limit);
 		$this->createQuery();
 		if ($debug)
 			$this->getDebug();
